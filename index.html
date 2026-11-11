@@ -1,286 +1,248 @@
-```html
 <!DOCTYPE html>
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GameSuite Online: Dama, Backgammon & Sudoku</title>
-    <!-- Tailwind CSS CDN -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Suite - Dama, Backgammon, Sudoku</title>
+    <!-- Tailwind CSS per un design moderno e responsive -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-        
-        * {
-            font-family: 'Inter', sans-serif;
-            touch-action: manipulation;
-            user-select: none;
-            -webkit-user-select: none;
-        }
-
-        ::-webkit-scrollbar {
-            width: 4px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #0f172a;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #334155;
-            border-radius: 4px;
-        }
-
-        @keyframes diceRoll {
-            0% { transform: rotate(0deg) scale(1); }
-            50% { transform: rotate(180deg) scale(1.2); }
-            100% { transform: rotate(360deg) scale(1); }
-        }
-        .animate-dice {
-            animation: diceRoll 0.4s ease-out;
-        }
-
-        .glass-panel {
-            background: rgba(30, 41, 59, 0.75);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
     </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col overflow-x-hidden select-none">
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col items-center justify-between p-4">
 
-    <!-- TOP HEADER -->
-    <header class="h-14 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between px-4 sticky top-0 z-50 backdrop-blur-md">
-        <div class="flex items-center gap-2 cursor-pointer" onclick="leaveRoomToHub()">
-            <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-indigo-500/30">
-                G
-            </div>
-            <span class="font-bold text-lg tracking-wide bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">GameSuite</span>
+    <!-- Header -->
+    <header class="w-full max-w-md flex justify-between items-center py-4">
+        <h1 class="text-xl font-bold bg-gradient-to-r from-indigo-400 to-pink-500 bg-clip-text text-transparent">Game Suite Online</h1>
+        <div id="auth-status" class="text-xs text-slate-400 flex items-center gap-2">
+            <span id="user-display">Connessione...</span>
+            <button id="google-login-btn" onclick="loginWithGoogle()" class="hidden bg-white text-slate-900 px-2.5 py-1 rounded font-medium hover:bg-slate-200 transition text-xs">Accedi Google</button>
         </div>
-        <div id="room-badge" class="text-xs font-mono font-semibold tracking-wider text-emerald-400 bg-emerald-950/60 border border-emerald-800/50 px-2.5 py-1 rounded-full hidden">
-            Stanza: <span id="badge-code">----</span>
-        </div>
-        <button onclick="leaveRoomToHub()" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 active:scale-95 transition text-slate-300">
-            <i data-lucide="home" class="w-5 h-5"></i>
-        </button>
     </header>
 
-    <!-- MAIN CONTAINER -->
-    <main class="flex-1 flex flex-col items-center justify-center p-3 max-w-lg mx-auto w-full pb-10">
+    <!-- Main Container -->
+    <main class="w-full max-w-md flex-1 flex flex-col justify-center">
         
-        <!-- ================= HUB VIEW ================= -->
-        <section id="view-hub" class="w-full flex flex-col gap-4 py-3">
-            <div class="text-center space-y-1 mb-1">
-                <h1 class="text-2xl font-extrabold text-white">Sala Giochi Online</h1>
-                <p class="text-xs text-slate-400">Gioca in tempo reale con amici tramite internet o in singolo!</p>
+        <!-- Schermata Iniziale / Lobby -->
+        <div id="lobby-screen" class="bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700 space-y-4">
+            <h2 class="text-lg font-semibold text-center mb-2">Benvenuto! Scegli il gioco</h2>
+            
+            <div>
+                <label class="block text-sm font-medium text-slate-300 mb-1">Il tuo Nickname</label>
+                <input type="text" id="nickname-input" placeholder="Es. Giocatore1" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-indigo-500">
             </div>
 
-            <!-- Profile / Auth Card -->
-            <div class="glass-panel p-3.5 rounded-2xl flex flex-col gap-3">
-                <div class="flex items-center justify-between text-xs">
-                    <div class="flex items-center gap-2 text-slate-300">
-                        <i data-lucide="user" class="w-4 h-4 text-indigo-400"></i>
-                        <span>Account: <strong id="user-name-display" class="font-bold text-slate-200">Ospite Anonimo</strong></span>
-                    </div>
-                    <div class="flex items-center gap-1.5 text-emerald-400 font-medium">
-                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> <span id="auth-status-text">Connesso</span>
-                    </div>
-                </div>
-                <button id="google-auth-btn" onclick="loginWithGoogle()" class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 active:scale-95 text-white font-semibold text-xs rounded-xl flex items-center justify-center gap-2 border border-slate-700/80 shadow-sm transition">
-                    <svg class="w-4 h-4" viewBox="0 0 24 24"><path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
-                    Accedi con Google
-                </button>
+            <div>
+                <label class="block text-sm font-medium text-slate-300 mb-1">Seleziona Gioco</label>
+                <select id="game-select" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-indigo-500">
+                    <option value="checkers">Dama</option>
+                    <option value="backgammon">Backgammon</option>
+                    <option value="sudoku">Sudoku</option>
+                </select>
             </div>
 
-            <!-- Game Cards -->
-            <div class="grid grid-cols-1 gap-3.5">
-                <!-- Checkers Card -->
-                <div class="glass-panel p-4 rounded-2xl flex flex-col gap-3 relative overflow-hidden group hover:border-indigo-500/50 transition">
-                    <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-red-500/10 rounded-full blur-xl"></div>
-                    <div class="flex items-center gap-3">
-                        <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-red-500 to-amber-600 flex items-center justify-center text-white shadow-lg">
-                            <i data-lucide="grid" class="w-6 h-6"></i>
-                        </div>
-                        <div>
-                            <h2 class="font-bold text-base text-white">Dama Italiana</h2>
-                            <p class="text-xs text-slate-400">Multigiocatore online 1v1 con catture obbligatorie</p>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-2 mt-1">
-                        <button onclick="openLobbyModal('checkers', 'create')" class="py-2.5 px-3 bg-indigo-600 hover:bg-indigo-500 active:scale-95 rounded-xl font-semibold text-xs flex items-center justify-center gap-1.5 text-white shadow-md shadow-indigo-600/30">
-                            <i data-lucide="plus-circle" class="w-4 h-4"></i> Crea Stanza
-                        </button>
-                        <button onclick="openLobbyModal('checkers', 'join')" class="py-2.5 px-3 bg-slate-800 hover:bg-slate-700 active:scale-95 rounded-xl font-medium text-xs flex items-center justify-center gap-1.5 border border-slate-700/60 text-slate-200">
-                            <i data-lucide="log-in" class="w-4 h-4 text-indigo-400"></i> Unisciti
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Backgammon Card -->
-                <div class="glass-panel p-4 rounded-2xl flex flex-col gap-3 relative overflow-hidden group hover:border-amber-500/50 transition">
-                    <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-amber-500/10 rounded-full blur-xl"></div>
-                    <div class="flex items-center gap-3">
-                        <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-500 to-yellow-600 flex items-center justify-center text-white shadow-lg">
-                            <i data-lucide="dices" class="w-6 h-6"></i>
-                        </div>
-                        <div>
-                            <h2 class="font-bold text-base text-white">Backgammon</h2>
-                            <p class="text-xs text-slate-400">Tavola reale online con lancio dadi sincronizzato</p>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-2 mt-1">
-                        <button onclick="openLobbyModal('backgammon', 'create')" class="py-2.5 px-3 bg-amber-600 hover:bg-amber-500 active:scale-95 rounded-xl font-semibold text-xs flex items-center justify-center gap-1.5 text-white shadow-md shadow-amber-600/30">
-                            <i data-lucide="plus-circle" class="w-4 h-4"></i> Crea Stanza
-                        </button>
-                        <button onclick="openLobbyModal('backgammon', 'join')" class="py-2.5 px-3 bg-slate-800 hover:bg-slate-700 active:scale-95 rounded-xl font-medium text-xs flex items-center justify-center gap-1.5 border border-slate-700/60 text-slate-200">
-                            <i data-lucide="log-in" class="w-4 h-4 text-amber-400"></i> Unisciti
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Sudoku Card -->
-                <div class="glass-panel p-4 rounded-2xl flex flex-col gap-3 relative overflow-hidden group hover:border-emerald-500/50 transition">
-                    <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-emerald-500/10 rounded-full blur-xl"></div>
-                    <div class="flex items-center gap-3">
-                        <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white shadow-lg">
-                            <i data-lucide="hash" class="w-6 h-6"></i>
-                        </div>
-                        <div>
-                            <h2 class="font-bold text-base text-white">Sudoku Solitario / Sfida</h2>
-                            <p class="text-xs text-slate-400">Allenati in solitaria o sfida un amico a chi completa prima</p>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-2 mt-1">
-                        <button onclick="startSudokuSolo('easy')" class="py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 active:scale-95 rounded-xl font-semibold text-xs flex items-center justify-center gap-1.5 text-white shadow-md shadow-emerald-600/30">
-                            <i data-lucide="play" class="w-4 h-4"></i> Gioca Singolo
-                        </button>
-                        <button onclick="openLobbyModal('sudoku', 'create')" class="py-2.5 px-3 bg-slate-800 hover:bg-slate-700 active:scale-95 rounded-xl font-medium text-xs flex items-center justify-center gap-1.5 border border-slate-700/60 text-slate-200">
-                            <i data-lucide="users" class="w-4 h-4 text-emerald-400"></i> Sfida Online
-                        </button>
-                    </div>
+            <div class="pt-2 space-y-2">
+                <button onclick="createRoom()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 rounded-lg transition shadow-lg shadow-indigo-600/30">Crea Nuova Stanza</button>
+                <div class="flex gap-2">
+                    <input type="text" id="room-code-input" placeholder="Codice Stanza" class="w-1/2 px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white uppercase text-center font-mono">
+                    <button onclick="joinRoom()" class="w-1/2 bg-slate-700 hover:bg-slate-600 text-white font-semibold py-2.5 rounded-lg transition">Unisciti</button>
                 </div>
             </div>
-        </section>
+            <div id="lobby-error" class="text-rose-400 text-xs text-center mt-2"></div>
+        </div>
 
-        <!-- ================= WAITING FOR PLAYER VIEW ================= -->
-        <section id="view-waiting" class="w-full flex flex-col items-center justify-center gap-6 py-16 hidden">
-            <div class="w-16 h-16 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center animate-spin">
-                <i data-lucide="loader" class="w-8 h-8"></i>
+        <!-- Schermata di Gioco -->
+        <div id="game-screen" class="hidden flex flex-col h-full space-y-4">
+            <div class="flex justify-between items-center bg-slate-800 p-3 rounded-xl border border-slate-700">
+                <div>
+                    <span id="current-game-title" class="font-bold text-indigo-400 text-sm">Gioco</span>
+                    <div class="text-xs text-slate-400">Stanza: <span id="room-code-display" class="font-mono text-white">----</span></div>
+                </div>
+                <button onclick="leaveRoom()" class="bg-rose-600/20 text-rose-400 border border-rose-600/30 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-rose-600 hover:text-white transition">Esci</button>
             </div>
-            <div class="text-center space-y-2">
-                <h2 class="text-xl font-bold text-white">In attesa di un secondo giocatore...</h2>
-                <p class="text-xs text-slate-400">Condividi questo codice stanza con il tuo amico:</p>
-                <div class="inline-block bg-slate-900 border border-slate-700 px-6 py-3 rounded-xl font-mono text-xl font-extrabold text-indigo-400 tracking-widest shadow-inner mt-2" id="waiting-room-code">
-                    ----
+
+            <!-- Area Tavolo da Gioco -->
+            <div id="game-board-container" class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex flex-col items-center justify-center min-h-[300px]">
+                <p class="text-slate-400 text-sm animate-pulse">In attesa dell'avversario...</p>
+            </div>
+
+            <!-- Chat / Info Box -->
+            <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col h-32">
+                <div id="chat-messages" class="flex-1 overflow-y-auto space-y-1 text-xs pr-2">
+                    <div class="text-slate-500 italic">Stanza creata. Condividi il codice con un amico!</div>
+                </div>
+                <div class="flex gap-2 mt-2 pt-2 border-t border-slate-700">
+                    <input type="text" id="chat-input" placeholder="Scrivi un messaggio..." class="flex-1 px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white focus:outline-none focus:border-indigo-500" onkeydown="if(event.key==='Enter') sendChatMessage()">
+                    <button onclick="sendChatMessage()" class="bg-indigo-600 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-indigo-500 transition">Invia</button>
                 </div>
             </div>
-            <button onclick="leaveRoomToHub()" class="px-6 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700">
-                Annulla e Torna alla Home
-            </button>
-        </section>
-
-        <!-- ================= CHECKERS GAME VIEW ================= -->
-        <section id="view-checkers" class="w-full flex flex-col items-center gap-3 hidden">
-            <!-- Player Info & Turn Bar -->
-            <div class="w-full flex items-center justify-between glass-panel px-4 py-2.5 rounded-xl text-xs">
-                <div class="flex items-center gap-2">
-                    <div id="chk-turn-dot" class="w-3.5 h-3.5 rounded-full bg-slate-100 border border-slate-900"></div>
-                    <span id="chk-status" class="font-semibold text-slate-200">Turno: Bianco</span>
-                </div>
-                <div class="text-indigo-400 font-mono font-bold" id="chk-role-badge">Ruolo: -</div>
-            </div>
-
-            <!-- Board -->
-            <div class="w-full aspect-square bg-slate-900 p-2 rounded-2xl border border-slate-800 shadow-2xl relative">
-                <div id="checkers-board" class="w-full h-full grid grid-cols-8 grid-rows-8 rounded-lg overflow-hidden border border-slate-700"></div>
-            </div>
-
-            <!-- Chat & Controls toggle -->
-            <div class="w-full flex gap-2">
-                <button onclick="toggleChat()" class="flex-1 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-medium text-slate-300 border border-slate-700 flex items-center justify-center gap-1.5">
-                    <i data-lucide="message-square" class="w-4 h-4 text-indigo-400"></i> Apri Chat Stanza
-                </button>
-            </div>
-        </section>
-
-        <!-- ================= BACKGAMMON GAME VIEW ================= -->
-        <section id="view-backgammon" class="w-full flex flex-col items-center gap-3 hidden">
-            <!-- Header -->
-            <div class="w-full flex items-center justify-between glass-panel px-4 py-2.5 rounded-xl text-xs">
-                <div class="flex items-center gap-2">
-                    <div id="bg-turn-dot" class="w-3.5 h-3.5 rounded-full bg-amber-400"></div>
-                    <span id="bg-status" class="font-semibold text-slate-200">Turno: Bianco</span>
-                </div>
-                <div class="text-amber-400 font-mono font-bold" id="bg-role-badge">Ruolo: -</div>
-            </div>
-
-            <!-- Board View -->
-            <div class="w-full aspect-[4/3] bg-amber-950 p-2 rounded-2xl border-2 border-amber-900 shadow-2xl relative flex flex-col justify-between overflow-hidden">
-                <svg id="bg-board-svg" class="w-full h-full absolute inset-0 cursor-pointer" viewBox="0 0 400 300"></svg>
-                <div id="bg-checkers-layer" class="w-full h-full absolute inset-0 pointer-events-none"></div>
-            </div>
-
-            <!-- Dice Controls -->
-            <div class="w-full glass-panel p-3 rounded-xl flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <div id="bg-dice-1" class="w-10 h-10 bg-slate-100 text-slate-900 font-extrabold text-xl rounded-xl flex items-center justify-center shadow-md">?</div>
-                    <div id="bg-dice-2" class="w-10 h-10 bg-slate-100 text-slate-900 font-extrabold text-xl rounded-xl flex items-center justify-center shadow-md">?</div>
-                    <div id="bg-moves-left" class="text-xs text-amber-400 font-medium ml-1">Tira i dadi</div>
-                </div>
-                <button id="bg-roll-btn" onclick="rollBackgammonDice()" class="px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg active:scale-95 transition flex items-center gap-1.5">
-                    <i data-lucide="dices" class="w-4 h-4"></i> Tira
-                </button>
-            </div>
-            <button onclick="toggleChat()" class="w-full py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-medium text-slate-300 border border-slate-700 flex items-center justify-center gap-1.5">
-                <i data-lucide="message-square" class="w-4 h-4 text-amber-400"></i> Apri Chat Stanza
-            </button>
-        </section>
-
-        <!-- ================= SUDOKU GAME VIEW ================= -->
-        <section id="view-sudoku" class="w-full flex flex-col items-center gap-3 hidden">
-            <!-- Header Status -->
-            <div class="w-full flex items-center justify-between glass-panel px-4 py-2.5 rounded-xl">
-                <div class="flex items-center gap-3 text-xs">
-                    <div class="flex items-center gap-1 text-slate-300">
-                        <i data-lucide="timer" class="w-4 h-4 text-emerald-400"></i>
-                        <span id="sudoku-timer" class="font-mono font-bold text-sm">00:00</span>
-                    </div>
-                    <div class="flex items-center gap-1 text-slate-300">
-                        <i data-lucide="alert-circle" class="w-4 h-4 text-rose-400"></i>
-                        <span id="sudoku-errors" class="font-bold text-sm">0/3</span>
-                    </div>
-                </div>
-                <button onclick="toggleChat()" class="p-2 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700">
-                    <i data-lucide="message-square" class="w-4 h-4"></i>
-                </button>
-            </div>
-
-            <!-- Sudoku 9x9 Grid -->
-            <div class="w-full aspect-square bg-slate-900 p-1.5 rounded-2xl border border-slate-800 shadow-2xl">
-                <div id="sudoku-grid" class="w-full h-full grid grid-cols-9 grid-rows-9 gap-[1px] bg-slate-700 rounded-lg overflow-hidden"></div>
-            </div>
-
-            <!-- Numpad -->
-            <div class="w-full grid grid-cols-5 gap-2">
-                <button onclick="inputSudokuNum(1)" class="py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold text-lg rounded-xl shadow border border-slate-700">1</button>
-                <button onclick="inputSudokuNum(2)" class="py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold text-lg rounded-xl shadow border border-slate-700">2</button>
-                <button onclick="inputSudokuNum(3)" class="py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold text-lg rounded-xl shadow border border-slate-700">3</button>
-                <button onclick="inputSudokuNum(4)" class="py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold text-lg rounded-xl shadow border border-slate-700">4</button>
-                <button onclick="inputSudokuNum(5)" class="py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold text-lg rounded-xl shadow border border-slate-700">5</button>
-                <button onclick="inputSudokuNum(6)" class="py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold text-lg rounded-xl shadow border border-slate-700">6</button>
-                <button onclick="inputSudokuNum(7)" class="py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold text-lg rounded-xl shadow border border-slate-700">7</button>
-                <button onclick="inputSudokuNum(8)" class="py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold text-lg rounded-xl shadow border border-slate-700">8</button>
-                <button onclick="inputSudokuNum(9)" class="py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold text-lg rounded-xl shadow border border-slate-700">9</button>
-                <button onclick="inputSudokuNum(0)" class="py-3 bg-rose-950/40 border border-rose-900/50 text-rose-300 font-bold text-xs rounded-xl shadow flex items-center justify-center">Canc</button>
-            </div>
-        </section>
+        </div>
 
     </main>
 
-    <!-- ================= LOBBY MODAL ================= -->
-    <div id="modal-lobby" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="glass-panel w-full max-w-sm rounded-2xl p-5 flex flex-col gap-4 shadow-2xl border border-slate-700">
-            <div class="flex items-center justify-between">
-                <h3 id="lobby-modal-title" class="text-base font-bold text-white">Crea o Unisciti</h3>
-                <button onclick="closeLobbyModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
-            </div>
-            <div id
+    <!-- Footer -->
+    <footer class="w-full max-w-md text-center text-xs text-slate-500 py-2">
+        Game Suite Multiplayer &bull; Powered by Firebase
+    </footer>
+
+    <!-- Firebase Configuration & Logica App -->
+    <script>
+        // Configurazione Firebase (Sostituisci con il tuo progetto o usa quello di test integrato)
+        const firebaseConfig = {
+            apiKey: "AIzaSyDummyKeyForDemoPurposes12345",
+            authDomain: "gamesuite-demo.firebaseapp.com",
+            databaseURL: "https://gamesuite-demo-default-rtdb.firebaseio.com",
+            projectId: "gamesuite-demo",
+            storageBucket: "gamesuite-demo.appspot.com",
+            messagingSenderId: "1234567890",
+            appId: "1:1234567890:web:abcdef123456"
+        };
+
+        // Inizializzazione Firebase
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const auth = firebase.auth();
+        const db = firebase.database();
+
+        let currentUser = null;
+        let currentRoomId = null;
+        let roomRef = null;
+
+        // Autenticazione Automatica Anonima all'avvio
+        auth.signInAnonymously().then((userCredential) => {
+            currentUser = userCredential.user;
+            document.getElementById('user-display').innerText = "Connesso (Ospite)";
+        }).catch((error) => {
+            console.error("Errore autenticazione:", error);
+            document.getElementById('lobby-error').innerText = "Errore di connessione al server di autenticazione.";
+        });
+
+        function loginWithGoogle() {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            auth.signInWithPopup(provider).then((result) => {
+                currentUser = result.user;
+                document.getElementById('user-display').innerText = currentUser.displayName || "Utente Google";
+                document.getElementById('google-login-btn').classList.add('hidden');
+            }).catch((error) => {
+                console.error("Errore login Google:", error);
+            });
+        }
+
+        // Funzioni di Gestione Stanza
+        function createRoom() {
+            const nickname = document.getElementById('nickname-input').value.trim();
+            const gameType = document.getElementById('game-select').value;
+            const errorEl = document.getElementById('lobby-error');
+
+            if (!nickname) {
+                errorEl.innerText = "Inserisci un nickname valido!";
+                return;
+            }
+            if (!currentUser) {
+                errorEl.innerText = "Autenticazione in corso, riprova tra un secondo...";
+                return;
+            }
+
+            errorEl.innerText = "";
+            const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+            const roomData = {
+                game: gameType,
+                host: { uid: currentUser.uid, name: nickname },
+                status: "waiting",
+                createdAt: Date.now()
+            };
+
+            db.ref('rooms/' + roomCode).set(roomData).then(() => {
+                enterRoom(roomCode, gameType, true);
+            }).catch((err) => {
+                errorEl.innerText = "Errore nella creazione della stanza.";
+            });
+        }
+
+        function joinRoom() {
+            const nickname = document.getElementById('nickname-input').value.trim();
+            const roomCode = document.getElementById('room-code-input').value.trim().toUpperCase();
+            const errorEl = document.getElementById('lobby-error');
+
+            if (!nickname) {
+                errorEl.innerText = "Inserisci un nickname valido!";
+                return;
+            }
+            if (!roomCode || roomCode.length < 6) {
+                errorEl.innerText = "Inserisci un codice stanza valido!";
+                return;
+            }
+            if (!currentUser) {
+                errorEl.innerText = "Autenticazione in corso, riprova tra un secondo...";
+                return;
+            }
+
+            errorEl.innerText = "";
+            db.ref('rooms/' + roomCode).once('value', (snapshot) => {
+                if (snapshot.exists()) {
+                    const room = snapshot.val();
+                    db.ref('rooms/' + roomCode + '/guest').set({ uid: currentUser.uid, name: nickname });
+                    db.ref('rooms/' + roomCode + '/status').set('playing');
+                    enterRoom(roomCode, room.game, false);
+                } else {
+                    errorEl.innerText = "Stanza non trovata o inesistente.";
+                }
+            });
+        }
+
+        function enterRoom(code, gameType, isHost) {
+            currentRoomId = code;
+            document.getElementById('lobby-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+            document.getElementById('room-code-display').innerText = code;
+            document.getElementById('current-game-title').innerText = gameType.toUpperCase();
+
+            roomRef = db.ref('rooms/' + code);
+            
+            // Ascolta eventi della stanza
+            roomRef.on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (!data) return;
+                if (data.status === 'playing' && data.guest) {
+                    document.getElementById('game-board-container').innerHTML = `
+                        <div class="text-center space-y-2">
+                            <p class="text-emerald-400 font-semibold">Partita avviata con successo!</p>
+                            <p class="text-xs text-slate-300">Host: ${data.host.name} vs Ospite: ${data.guest.name}</p>
+                            <div class="p-4 bg-slate-900 rounded-lg border border-slate-700 text-xs">Tavolo da gioco ${data.game.toUpperCase()} attivo in tempo reale.</div>
+                        </div>
+                    `;
+                }
+            });
+        }
+
+        function leaveRoom() {
+            if (currentRoomId) {
+                db.ref('rooms/' + currentRoomId).remove();
+            }
+            currentRoomId = null;
+            document.getElementById('game-screen').classList.add('hidden');
+            document.getElementById('lobby-screen').classList.remove('hidden');
+        }
+
+        function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const msg = input.value.trim();
+            if (!msg || !currentRoomId) return;
+
+            db.ref('rooms/' + currentRoomId + '/chat').push({
+                sender: document.getElementById('nickname-input').value,
+                text: msg,
+                time: Date.now()
+            });
+            input.value = '';
+        }
+    </script>
+</body>
+</html>
