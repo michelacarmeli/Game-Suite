@@ -4,9 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Game Suite - Dama, Backgammon, Sudoku</title>
-    <!-- Tailwind CSS per un design moderno e responsive -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
@@ -58,7 +56,7 @@
         </div>
 
         <!-- Schermata di Gioco -->
-        <div id="game-screen" class="hidden flex flex-col h-full space-y-4">
+        <div id="game-screen" class="hidden flex flex-col h-full space-y-3">
             <div class="flex justify-between items-center bg-slate-800 p-3 rounded-xl border border-slate-700">
                 <div>
                     <span id="current-game-title" class="font-bold text-indigo-400 text-sm">Gioco</span>
@@ -67,15 +65,15 @@
                 <button onclick="leaveRoom()" class="bg-rose-600/20 text-rose-400 border border-rose-600/30 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-rose-600 hover:text-white transition">Esci</button>
             </div>
 
-            <!-- Area Tavolo da Gioco -->
-            <div id="game-board-container" class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex flex-col items-center justify-center min-h-[300px]">
-                <p class="text-slate-400 text-sm animate-pulse">In attesa dell'avversario...</p>
+            <!-- Area Tavolo da Gioco Interattivo -->
+            <div id="game-board-container" class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex flex-col items-center justify-center min-h-[320px]">
+                <p class="text-slate-400 text-sm animate-pulse">Caricamento tavolo da gioco...</p>
             </div>
 
             <!-- Chat / Info Box -->
-            <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col h-32">
+            <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col h-28">
                 <div id="chat-messages" class="flex-1 overflow-y-auto space-y-1 text-xs pr-2">
-                    <div class="text-slate-500 italic">Stanza creata. Condividi il codice con un amico!</div>
+                    <div class="text-slate-500 italic">Partita iniziata! Scrivi qui sotto per chattare.</div>
                 </div>
                 <div class="flex gap-2 mt-2 pt-2 border-t border-slate-700">
                     <input type="text" id="chat-input" placeholder="Scrivi un messaggio..." class="flex-1 px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white focus:outline-none focus:border-indigo-500" onkeydown="if(event.key==='Enter') sendChatMessage()">
@@ -93,19 +91,17 @@
 
     <!-- Firebase Configuration & Logica App -->
     <script>
-        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyD8-oItLBZAWfK_xXh4KTvhkTkj5kTTKJs",
-  authDomain: "game-suite-90de2.firebaseapp.com",
-  databaseURL: "https://game-suite-90de2-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "game-suite-90de2",
-  storageBucket: "game-suite-90de2.firebasestorage.app",
-  messagingSenderId: "738175961503",
-  appId: "1:738175961503:web:a3e69ff17f2a319fa2d5aa",
-  measurementId: "G-M5Z8Q5X065"
-};
+        // INCOLLA QUI LE TUE CHIAVI REALI DI FIREBASE
+        const firebaseConfig = {
+            apiKey: "TUA_API_KEY",
+            authDomain: "TUO_PROGETTO.firebaseapp.com",
+            databaseURL: "https://TUO_PROGETTO-default-rtdb.firebaseio.com",
+            projectId: "TUO_PROGETTO",
+            storageBucket: "TUO_PROGETTO.appspot.com",
+            messagingSenderId: "TID_SENDER",
+            appId: "TUO_APP_ID"
+        };
 
-        // Inizializzazione Firebase
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
         }
@@ -116,10 +112,10 @@ const firebaseConfig = {
         let currentRoomId = null;
         let roomRef = null;
 
-        // Autenticazione Automatica Anonima all'avvio
         auth.signInAnonymously().then((userCredential) => {
             currentUser = userCredential.user;
             document.getElementById('user-display').innerText = "Connesso (Ospite)";
+            document.getElementById('google-login-btn').classList.remove('hidden');
         }).catch((error) => {
             console.error("Errore autenticazione:", error);
             document.getElementById('lobby-error').innerText = "Errore di connessione al server di autenticazione.";
@@ -136,7 +132,6 @@ const firebaseConfig = {
             });
         }
 
-        // Funzioni di Gestione Stanza
         function createRoom() {
             const nickname = document.getElementById('nickname-input').value.trim();
             const gameType = document.getElementById('game-select').value;
@@ -207,20 +202,77 @@ const firebaseConfig = {
 
             roomRef = db.ref('rooms/' + code);
             
-            // Ascolta eventi della stanza
             roomRef.on('value', (snapshot) => {
                 const data = snapshot.val();
                 if (!data) return;
+                
                 if (data.status === 'playing' && data.guest) {
+                    renderGame(data.game, data.host, data.guest, isHost);
+                } else {
                     document.getElementById('game-board-container').innerHTML = `
                         <div class="text-center space-y-2">
-                            <p class="text-emerald-400 font-semibold">Partita avviata con successo!</p>
-                            <p class="text-xs text-slate-300">Host: ${data.host.name} vs Ospite: ${data.guest.name}</p>
-                            <div class="p-4 bg-slate-900 rounded-lg border border-slate-700 text-xs">Tavolo da gioco ${data.game.toUpperCase()} attivo in tempo reale.</div>
+                            <p class="text-amber-400 font-semibold animate-pulse">In attesa che l'avversario si unisca...</p>
+                            <p class="text-xs text-slate-400">Codice stanza: <span class="text-white font-mono font-bold">${code}</span></p>
                         </div>
                     `;
                 }
             });
+
+            roomRef.child('chat').on('child_added', (snapshot) => {
+                const chatData = snapshot.val();
+                const chatContainer = document.getElementById('chat-messages');
+                const msgDiv = document.createElement('div');
+                msgDiv.innerHTML = `<span class="font-semibold text-indigo-300">${chatData.sender}:</span> ${chatData.text}`;
+                chatContainer.appendChild(msgDiv);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            });
+        }
+
+        function renderGame(gameType, host, guest, isHost) {
+            const container = document.getElementById('game-board-container');
+            
+            if (gameType === 'sudoku') {
+                container.innerHTML = `
+                    <div class="w-full text-center space-y-2">
+                        <div class="text-xs text-slate-300 flex justify-between px-2">
+                            <span>🔴 ${host.name} (Host)</span>
+                            <span>🔵 ${guest.name} (Ospite)</span>
+                        </div>
+                        <div class="grid grid-cols-9 gap-0.5 bg-slate-700 p-1 rounded max-w-[280px] mx-auto">
+                            ${Array(81).fill(0).map((_, i) => `<input type="number" min="1" max="9" class="w-7 h-7 text-center bg-slate-900 text-white text-xs rounded-sm focus:bg-indigo-900 focus:outline-none" data-index="${i}">`).join('')}
+                        </div>
+                        <p class="text-[11px] text-slate-400">Modalità cooperativa/competitiva Sudoku attiva.</p>
+                    </div>
+                `;
+            } else if (gameType === 'checkers') {
+                container.innerHTML = `
+                    <div class="w-full text-center space-y-2">
+                        <div class="text-xs text-slate-300 flex justify-between px-2">
+                            <span>⚪ ${host.name} (Pedine Bianche)</span>
+                            <span>🔴 ${guest.name} (Pedine Rosse)</span>
+                        </div>
+                        <div class="grid grid-cols-8 gap-1 bg-amber-900 p-2 rounded max-w-[260px] mx-auto aspect-square">
+                            ${Array(64).fill(0).map((_, i) => {
+                                const isDark = (Math.floor(i / 8) + (i % 8)) % 2 === 1;
+                                return `<div class="bg-${isDark ? 'amber-950' : 'amber-200'} rounded flex items-center justify-center text-xs"></div>`;
+                            }).join('')}
+                        </div>
+                        <p class="text-[11px] text-slate-400">Tavolo da Dama pronto. Tocca le caselle per muovere.</p>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = `
+                    <div class="w-full text-center space-y-3">
+                        <div class="text-xs text-slate-300 flex justify-between px-2">
+                            <span>⚪ ${host.name}</span>
+                            <span>⚫ ${guest.name}</span>
+                        </div>
+                        <div class="p-4 bg-slate-900 rounded-lg border border-slate-700 text-xs text-emerald-400 font-medium">
+                            Tavolo Backgammon online sincronizzato con successo!
+                        </div>
+                    </div>
+                `;
+            }
         }
 
         function leaveRoom() {
@@ -246,4 +298,5 @@ const firebaseConfig = {
         }
     </script>
 </body>
-</html>
+    </html>
+    
