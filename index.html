@@ -38,10 +38,20 @@
 
             <div>
                 <label class="block text-sm font-medium text-slate-300 mb-1">Seleziona Gioco</label>
-                <select id="game-select" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-indigo-500">
+                <select id="game-select" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-indigo-500" onchange="toggleDifficulty()">
                     <option value="checkers">Dama</option>
                     <option value="backgammon">Backgammon</option>
                     <option value="sudoku">Sudoku</option>
+                </select>
+            </div>
+
+            <!-- Selezione Difficoltà Sudoku (visibile solo se Sudoku è selezionato) -->
+            <div id="difficulty-container" class="hidden">
+                <label class="block text-sm font-medium text-slate-300 mb-1">Difficoltà Sudoku</label>
+                <select id="sudoku-difficulty" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-indigo-500">
+                    <option value="easy">Facile</option>
+                    <option value="medium">Medio</option>
+                    <option value="hard">Difficile</option>
                 </select>
             </div>
 
@@ -91,17 +101,16 @@
 
     <!-- Firebase Configuration & Logica App -->
     <script>
-        // INCOLLA QUI LE TUE CHIAVI REALI DI FIREBASE
         const firebaseConfig = {
-  apiKey: "AIzaSyD8-oItLBZAWfK_xXh4KTvhkTkj5kTTKJs",
-  authDomain: "game-suite-90de2.firebaseapp.com",
-  databaseURL: "https://game-suite-90de2-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "game-suite-90de2",
-  storageBucket: "game-suite-90de2.firebasestorage.app",
-  messagingSenderId: "738175961503",
-  appId: "1:738175961503:web:484a1e3282df989ca2d5aa",
-  measurementId: "G-M2PWH5MDYY"
-};
+            apiKey: "AIzaSyD8-oItLBZAWfK_xXh4KTvhkTkj5kTTKJs",
+            authDomain: "game-suite-90de2.firebaseapp.com",
+            databaseURL: "https://game-suite-90de2-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "game-suite-90de2",
+            storageBucket: "game-suite-90de2.firebasestorage.app",
+            messagingSenderId: "738175961503",
+            appId: "1:738175961503:web:484a1e3282df989ca2d5aa",
+            measurementId: "G-M2PWH5MDYY"
+        };
 
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
@@ -112,6 +121,43 @@
         let currentUser = null;
         let currentRoomId = null;
         let roomRef = null;
+
+        // Schemi di Sudoku predefiniti per livello (0 = cella vuota)
+        const sudokuPuzzles = {
+            easy: [
+                5,3,0, 0,7,0, 0,0,0,
+                6,0,0, 1,9,5, 0,0,0,
+                0,9,8, 0,0,0, 0,6,0,
+                8,0,0, 0,6,0, 0,0,3,
+                4,0,0, 8,0,3, 0,0,1,
+                7,0,0, 0,2,0, 0,0,6,
+                0,6,0, 0,0,0, 2,8,0,
+                0,0,0, 4,1,9, 0,0,5,
+                0,0,0, 0,8,0, 0,7,9
+            ],
+            medium: [
+                0,2,0, 0,0,0, 0,0,0,
+                0,0,0, 6,0,0, 0,0,3,
+                0,7,4, 0,8,0, 0,0,0,
+                0,0,0, 0,0,3, 0,0,2,
+                0,8,0, 0,4,0, 0,1,0,
+                6,0,1, 0,5,0, 0,0,0,
+                0,0,0, 0,1,0, 7,8,0,
+                5,0,0, 0,0,9, 0,0,0,
+                0,0,0, 0,0,0, 0,4,0
+            ],
+            hard: [
+                0,0,0, 7,0,0, 0,0,0,
+                1,0,0, 0,0,0, 0,0,0,
+                0,0,0, 4,3,0, 2,0,0,
+                0,0,0, 0,0,0, 0,0,6,
+                0,0,5, 0,9,0, 0,0,0,
+                0,7,0, 0,0,0, 0,0,0,
+                0,0,0, 0,0,1, 0,0,0,
+                0,4,0, 0,0,0, 0,0,0,
+                0,0,0, 6,0,3, 0,7,0
+            ]
+        };
 
         auth.signInAnonymously().then((userCredential) => {
             currentUser = userCredential.user;
@@ -130,12 +176,24 @@
                 document.getElementById('google-login-btn').classList.add('hidden');
             }).catch((error) => {
                 console.error("Errore login Google:", error);
+                alert("Errore login Google: assicurati che il dominio sia autorizzato nella console Firebase.");
             });
+        }
+
+        function toggleDifficulty() {
+            const gameSelect = document.getElementById('game-select').value;
+            const diffContainer = document.getElementById('difficulty-container');
+            if (gameSelect === 'sudoku') {
+                diffContainer.classList.remove('hidden');
+            } else {
+                diffContainer.classList.add('hidden');
+            }
         }
 
         function createRoom() {
             const nickname = document.getElementById('nickname-input').value.trim();
             const gameType = document.getElementById('game-select').value;
+            const difficulty = document.getElementById('sudoku-difficulty').value;
             const errorEl = document.getElementById('lobby-error');
 
             if (!nickname) {
@@ -149,8 +207,17 @@
 
             errorEl.innerText = "";
             const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+            
+            // Seleziona lo schema iniziale se è sudoku
+            let initialBoard = null;
+            if (gameType === 'sudoku') {
+                initialBoard = sudokuPuzzles[difficulty];
+            }
+
             const roomData = {
                 game: gameType,
+                difficulty: difficulty,
+                board: initialBoard,
                 host: { uid: currentUser.uid, name: nickname },
                 status: "waiting",
                 createdAt: Date.now()
@@ -208,7 +275,7 @@
                 if (!data) return;
                 
                 if (data.status === 'playing' && data.guest) {
-                    renderGame(data.game, data.host, data.guest, isHost);
+                    renderGame(data, isHost);
                 } else {
                     document.getElementById('game-board-container').innerHTML = `
                         <div class="text-center space-y-2">
@@ -229,28 +296,33 @@
             });
         }
 
-        function renderGame(gameType, host, guest, isHost) {
+        function renderGame(data, isHost) {
             const container = document.getElementById('game-board-container');
+            const gameType = data.game;
             
             if (gameType === 'sudoku') {
+                const boardValues = data.board || sudokuPuzzles.easy;
                 container.innerHTML = `
                     <div class="w-full text-center space-y-2">
                         <div class="text-xs text-slate-300 flex justify-between px-2">
-                            <span>🔴 ${host.name} (Host)</span>
-                            <span>🔵 ${guest.name} (Ospite)</span>
+                            <span>🔴 ${data.host.name} (Host)</span>
+                            <span>🔵 ${data.guest.name} (Ospite)</span>
                         </div>
-                        <div class="grid grid-cols-9 gap-0.5 bg-slate-700 p-1 rounded max-w-[280px] mx-auto">
-                            ${Array(81).fill(0).map((_, i) => `<input type="number" min="1" max="9" class="w-7 h-7 text-center bg-slate-900 text-white text-xs rounded-sm focus:bg-indigo-900 focus:outline-none" data-index="${i}">`).join('')}
+                        <div class="grid grid-cols-9 gap-0.5 bg-slate-700 p-1 rounded max-w-[280px] mx-auto" id="sudoku-grid">
+                            ${boardValues.map((val, i) => {
+                                const isPreFilled = val !== 0;
+                                return `<input type="number" min="1" max="9" value="${isPreFilled ? val : ''}" ${isPreFilled ? 'disabled' : ''} class="w-7 h-7 text-center ${isPreFilled ? 'bg-slate-800 text-indigo-300 font-bold' : 'bg-slate-900 text-white'} text-xs rounded-sm focus:bg-indigo-900 focus:outline-none" data-index="${i}" onchange="updateSudokuCell(${i}, this.value)">`;
+                            }).join('')}
                         </div>
-                        <p class="text-[11px] text-slate-400">Modalità cooperativa/competitiva Sudoku attiva.</p>
+                        <p class="text-[11px] text-slate-400">Schema Sudoku caricato (${data.difficulty || 'facile'}).</p>
                     </div>
                 `;
             } else if (gameType === 'checkers') {
                 container.innerHTML = `
                     <div class="w-full text-center space-y-2">
                         <div class="text-xs text-slate-300 flex justify-between px-2">
-                            <span>⚪ ${host.name} (Pedine Bianche)</span>
-                            <span>🔴 ${guest.name} (Pedine Rosse)</span>
+                            <span>⚪ ${data.host.name} (Bianchi)</span>
+                            <span>🔴 ${data.guest.name} (Rossi)</span>
                         </div>
                         <div class="grid grid-cols-8 gap-1 bg-amber-900 p-2 rounded max-w-[260px] mx-auto aspect-square">
                             ${Array(64).fill(0).map((_, i) => {
@@ -258,22 +330,28 @@
                                 return `<div class="bg-${isDark ? 'amber-950' : 'amber-200'} rounded flex items-center justify-center text-xs"></div>`;
                             }).join('')}
                         </div>
-                        <p class="text-[11px] text-slate-400">Tavolo da Dama pronto. Tocca le caselle per muovere.</p>
+                        <p class="text-[11px] text-slate-400">Scacchiera Dama pronta.</p>
                     </div>
                 `;
             } else {
                 container.innerHTML = `
                     <div class="w-full text-center space-y-3">
                         <div class="text-xs text-slate-300 flex justify-between px-2">
-                            <span>⚪ ${host.name}</span>
-                            <span>⚫ ${guest.name}</span>
+                            <span>⚪ ${data.host.name}</span>
+                            <span>⚫ ${data.guest.name}</span>
                         </div>
                         <div class="p-4 bg-slate-900 rounded-lg border border-slate-700 text-xs text-emerald-400 font-medium">
-                            Tavolo Backgammon online sincronizzato con successo!
+                            Tavolo Backgammon online sincronizzato!
                         </div>
                     </div>
                 `;
             }
+        }
+
+        function updateSudokuCell(index, value) {
+            if (!currentRoomId) return;
+            const num = parseInt(value) || 0;
+            db.ref(`rooms/${currentRoomId}/board/${index}`).set(num);
         }
 
         function leaveRoom() {
@@ -299,5 +377,4 @@
         }
     </script>
 </body>
-    </html>
-    
+</html>
