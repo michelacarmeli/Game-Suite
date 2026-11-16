@@ -158,15 +158,13 @@
             ]
         };
 
-        // Autenticazione con cattura dettagliata dell'errore
         auth.signInAnonymously().then((userCredential) => {
             currentUser = userCredential.user;
             document.getElementById('user-display').innerText = "Connesso (Ospite)";
             document.getElementById('google-login-btn').classList.remove('hidden');
         }).catch((error) => {
             console.error("Errore autenticazione:", error);
-            document.getElementById('user-display').innerText = "Errore Auth";
-            document.getElementById('lobby-error').innerText = "Errore Firebase: " + error.message;
+            document.getElementById('lobby-error').innerText = "Errore di connessione al server di autenticazione.";
         });
 
         function loginWithGoogle() {
@@ -177,7 +175,7 @@
                 document.getElementById('google-login-btn').classList.add('hidden');
             }).catch((error) => {
                 console.error("Errore login Google:", error);
-                alert("Errore login Google: " + error.message);
+                alert("Errore login Google: assicurati che il dominio sia autorizzato nella console Firebase.");
             });
         }
 
@@ -202,7 +200,7 @@
                 return;
             }
             if (!currentUser) {
-                errorEl.innerText = "Autenticazione non completata. Controlla la connessione.";
+                errorEl.innerText = "Autenticazione in corso, riprova tra un secondo...";
                 return;
             }
 
@@ -236,7 +234,7 @@
             db.ref('rooms/' + roomCode).set(roomData).then(() => {
                 enterRoom(roomCode, gameType, true);
             }).catch((err) => {
-                errorEl.innerText = "Errore nella creazione della stanza: " + err.message;
+                errorEl.innerText = "Errore nella creazione della stanza.";
             });
         }
 
@@ -254,7 +252,7 @@
                 return;
             }
             if (!currentUser) {
-                errorEl.innerText = "Autenticazione non completata. Controlla la connessione.";
+                errorEl.innerText = "Autenticazione in corso, riprova tra un secondo...";
                 return;
             }
 
@@ -369,4 +367,5 @@
                             <div class="flex justify-center gap-4 py-2">
                                 <div class="w-10 h-10 bg-white text-slate-900 rounded-lg flex items-center justify-center font-bold text-lg shadow">${d1}</div>
                                 <div class="w-10 h-10 bg-white text-slate-900 rounded-lg flex items-center justify-center font-bold text-lg shadow">${d2}</div>
-                            <
+                            </div>
+                            <div class="text-[11px] text-slate-300">Ultimo lancio di: <span clas
