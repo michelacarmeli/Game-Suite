@@ -101,16 +101,17 @@
 
     <!-- Firebase Configuration & Logica App -->
     <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyD8-oItLBZAWfK_xXh4KTvhkTkj5kTTKJs",
-            authDomain: "game-suite-90de2.firebaseapp.com",
-            databaseURL: "https://game-suite-90de2-default-rtdb.europe-west1.firebasedatabase.app",
-            projectId: "game-suite-90de2",
-            storageBucket: "game-suite-90de2.firebasestorage.app",
-            messagingSenderId: "738175961503",
-            appId: "1:738175961503:web:484a1e3282df989ca2d5aa",
-            measurementId: "G-M2PWH5MDYY"
-        };
+        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyD8-oItLBZAWfK_xXh4KTvhkTkj5kTTKJs",
+  authDomain: "game-suite-90de2.firebaseapp.com",
+  databaseURL: "https://game-suite-90de2-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "game-suite-90de2",
+  storageBucket: "game-suite-90de2.firebasestorage.app",
+  messagingSenderId: "738175961503",
+  appId: "1:738175961503:web:484a1e3282df989ca2d5aa",
+  measurementId: "G-M2PWH5MDYY"
+};
 
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
